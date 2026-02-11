@@ -1,0 +1,209 @@
+<!DOCTYPE html><html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bubur Ayam Mang Opay</title>
+<style>
+body{font-family:Arial;background:#f4f4f4;margin:0;padding:12px;display:flex;justify-content:center}
+.box{background:#fff;padding:16px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,.1);width:100%;max-width:320px}
+h2{text-align:center;margin:0 0 10px}
+.row{display:flex;align-items:center;gap:6px;margin:6px 0}
+.row input{flex:1;min-width:0}
+input{padding:6px;font-size:14px;box-sizing:border-box}
+#namaMenu{flex:1}
+#hargaMenu{width:90px;flex:unset}
+.qty{width:55px;flex:unset}
+button{padding:6px 10px;border:none;border-radius:6px;cursor:pointer;font-size:13px}
+.btnAdd{width:100%;background:#28a745;color:#fff;margin-top:6px}
+.btnEdit{background:#ffc107}
+.btnDel{background:#dc3545;color:#fff}
+.btnMain{width:100%;background:#007bff;color:#fff;margin-top:8px}
+.totalLive{margin-top:10px;font-weight:bold;text-align:center}
+.struk{margin-top:15px;padding:10px;border:1px dashed #000;font-family:monospace;background:#fff;display:none;font-size:13px}
+.menuList{margin-top:10px;border-top:1px solid #ccc;padding-top:8px}
+.small{font-size:13px}
+.tabel{width:100%;border-collapse:collapse}
+.tabel td{padding:2px 0}
+.kiri{text-align:left}
+.kanan{text-align:right}
+.tengah{text-align:center}
+</style>
+</head>
+<body>
+<div class="box">
+<h2>Bubur Ayam Mang Opay</h2><div class="row">
+<input id="namaMenu" placeholder="Nama menu">
+<input id="hargaMenu" type="number" placeholder="Harga">
+</div>
+<button class="btnAdd" id="btnTambahMenu">Tambah Menu</button><div class="menuList" id="menuList"></div><div class="row">Bayar <input id="bayar" type="number"></div><div class="totalLive" id="totalLive">Total: Rp 0</div><button class="btnMain" id="btnCetak">Tampilkan Struk</button> <button class="btnMain" id="btnReset">Reset</button>
+
+<div class="struk" id="areaStruk"></div>
+</div><script>
+function el(id){return document.getElementById(id)}
+
+let menu = JSON.parse(localStorage.getItem('menuKasir')||'[]')
+
+function simpanMenu(){
+localStorage.setItem('menuKasir', JSON.stringify(menu))
+}
+
+function renderMenu(){
+let html=""
+menu.forEach((m,i)=>{
+html += `<div class="row small">
+<span style="flex:1">${m.nama} (Rp ${m.harga.toLocaleString('id-ID')})</span>
+<input class="qty" type="number" min="0" data-i="${i}">
+<button class="btnEdit" onclick="editMenu(${i})">Edit</button>
+<button class="btnDel" onclick="hapusMenu(${i})">X</button>
+</div>`
+})
+
+el('menuList').innerHTML = html
+
+// ENTER di qty pindah ke qty berikutnya, terakhir ke bayar
+let qtyInputs = document.querySelectorAll('.qty')
+qtyInputs.forEach((inp, idx)=>{
+  inp.addEventListener('input', updateTotalLive)
+
+  inp.addEventListener('keydown', e=>{
+    if(e.key==='Enter'){
+      e.preventDefault()
+      if(idx < qtyInputs.length-1) qtyInputs[idx+1].focus()
+      else el('bayar').focus()
+    }
+  })
+})
+
+updateTotalLive()
+}
+
+function tambahMenu(){
+let nama = el('namaMenu').value.trim()
+let harga = parseInt(el('hargaMenu').value)
+if(!nama || !harga) return alert('Isi nama & harga menu')
+menu.push({nama,harga})
+simpanMenu()
+el('namaMenu').value=''
+el('hargaMenu').value=''
+el('namaMenu').focus()
+renderMenu()
+}
+
+function editMenu(i){
+let namaBaru = prompt('Edit nama menu:', menu[i].nama)
+if(namaBaru===null) return
+let hargaBaru = prompt('Edit harga menu:', menu[i].harga)
+if(hargaBaru===null) return
+hargaBaru = parseInt(hargaBaru)
+if(!namaBaru || !hargaBaru) return alert('Data tidak valid')
+menu[i] = {nama:namaBaru, harga:hargaBaru}
+simpanMenu()
+renderMenu()
+}
+
+function hapusMenu(i){
+if(!confirm('Hapus menu ini?')) return
+menu.splice(i,1)
+simpanMenu()
+renderMenu()
+}
+
+function hitungTotal(){
+let total=0
+let qtyInputs = document.querySelectorAll('.qty')
+qtyInputs.forEach(inp=>{
+let i=parseInt(inp.dataset.i)
+let qty=parseInt(inp.value)||0
+total+=qty*menu[i].harga
+})
+return total
+}
+
+function updateTotalLive(){
+el('totalLive').innerHTML='Total: Rp '+hitungTotal().toLocaleString('id-ID')
+}
+
+function buatRincian(){
+let rows=""
+document.querySelectorAll('.qty').forEach(inp=>{
+let i=parseInt(inp.dataset.i)
+let qty=parseInt(inp.value)||0
+if(qty>0){
+rows += `<tr>
+<td class="kiri">${menu[i].nama} x${qty}</td>
+<td class="kanan">Rp ${(qty*menu[i].harga).toLocaleString('id-ID')}</td>
+</tr>`
+}
+})
+return rows || `<tr><td colspan="2" class="tengah">Tidak ada item</td></tr>`
+}
+
+function tampilkanStruk(){
+let total=hitungTotal()
+let bayar=parseInt(el('bayar').value)||0
+let kembali=bayar-total
+
+let now=new Date()
+let tanggal=now.toLocaleDateString('id-ID')
+let jam=now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'})
+
+let html=`
+<div class="tengah"><b>Bubur Ayam Mang Opay</b></div>
+<div class="tengah" style="font-size:12px">${tanggal} ${jam}</div>
+<hr>
+<table class="tabel">${buatRincian()}</table>
+<hr>
+<table class="tabel">
+<tr><td class="kiri">Total</td><td class="kanan">Rp ${total.toLocaleString('id-ID')}</td></tr>
+<tr><td class="kiri">Bayar</td><td class="kanan">Rp ${bayar.toLocaleString('id-ID')}</td></tr>
+<tr><td class="kiri">Kembali</td><td class="kanan">Rp ${kembali.toLocaleString('id-ID')}</td></tr>
+</table>
+<hr>
+<div class="tengah">Terima kasih</div>`
+
+let area = el('areaStruk')
+area.innerHTML = html
+area.style.display='block'
+
+let audio = new Audio('correct.mp3')
+audio.play().catch(()=>{})
+}
+
+function resetAll(){
+el('bayar').value=''
+el('areaStruk').style.display='none'
+document.querySelectorAll('.qty').forEach(i=>i.value='')
+updateTotalLive()
+let audio = new Audio('cring.mp3')
+audio.play().catch(()=>{})
+}
+
+el('btnTambahMenu').onclick = tambahMenu
+el('btnCetak').onclick = tampilkanStruk
+el('btnReset').onclick = resetAll
+
+// ENTER pintar seperti kasir
+el('namaMenu').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    e.preventDefault()
+    el('hargaMenu').focus()
+  }
+})
+
+el('hargaMenu').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    e.preventDefault()
+    tambahMenu()
+  }
+})
+
+el('bayar').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){
+    e.preventDefault()
+    tampilkanStruk()
+  }
+})
+
+renderMenu()
+</script></body>
+</html>
